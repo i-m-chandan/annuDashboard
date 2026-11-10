@@ -206,6 +206,9 @@ function handleDataError(err) {
   const msg = err && err.message ? err.message : String(err);
   console.error('Data sync error:', msg);
   showToast('Data connection issue: ' + msg, 'error');
+  updateStatusPills('Connection issue', 'Connection issue');
+  document.getElementById('health-asl-status').innerText = 'Connection issue';
+  document.getElementById('health-asil-status').innerText = 'Connection issue';
 
   const banner = document.getElementById('partial-data-banner');
   banner.className = 'alert-banner error';
