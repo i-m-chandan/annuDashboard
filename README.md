@@ -26,6 +26,7 @@ An executive-grade financial intelligence and receivables monitoring web applica
 | `styles.html` | CSS Stylesheet | Bloomberg/CFO-inspired dark navy executive palette, clean light surfaces, restrained cards, and responsive layouts. |
 | `styles.css` | CSS Stylesheet | Plain CSS mirror of `styles.html` for local browser previews that do not process Apps Script template includes. Keep both stylesheets in sync when changing dashboard styles. |
 | `javascript.html` | Client-side JS | Reactive state engine, dynamic multi-filter engine, multi-currency-safe arithmetic, Chart.js visual analytics, sorting, pagination, CSV export, and modals. |
+| `javascript.js` | Client-side JS | Standalone mirror of `javascript.html` for local previews and the fictional GitHub Pages demo. Keep both files in sync when changing dashboard behavior. |
 
 ---
 
@@ -51,7 +52,7 @@ Create the following files in the Apps Script editor:
 
 Save all files (`Ctrl + S` or click the floppy disk icon).
 
-For a local browser preview, open `index.html` from this project (or use VS Code Live Server). The linked `styles.css` provides the styling locally; the Apps Script web app continues to use the `styles.html` template include.
+For a local browser preview, open `index.html` from this project (or use VS Code Live Server). The linked `styles.css` and `javascript.js` provide styling and sample-data behavior locally; the Apps Script web app continues to use the `styles.html` and `javascript.html` template includes.
 
 ### Step 4: Authorize and Initialize Tracker
 1. In the Apps Script editor toolbar, select the function **`createPaymentTracker`** from the function dropdown.
@@ -122,3 +123,13 @@ For a local browser preview, open `index.html` from this project (or use VS Code
 
 ### Inspecting Live Health
 - Open **Tab 8 (Data Health & Refresh Log)** to view real-time latency, rows scanned, valid invoice counts, duplicate detection, and execution audit history.
+
+## 6. Publish a Public Demo on GitHub Pages
+
+The GitHub Pages site uses fictional sample invoices only. It does not connect to Apps Script or the source spreadsheets, and demo actions do not save changes.
+
+1. Push the project to the `main` branch of a GitHub repository.
+2. In GitHub, open **Settings → Pages** and set the build and deployment source to **GitHub Actions**.
+3. The workflow at `.github/workflows/pages.yml` publishes the static dashboard files. After it completes, open the Pages URL shown in the repository's **Settings → Pages**.
+
+The workflow publishes only `index.html`, `styles.css`, and `javascript.js`; it does not publish the Apps Script backend or this README. Do not change the public demo to load real financial data or expose an Apps Script deployment URL.

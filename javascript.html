@@ -41,6 +41,8 @@ const STATE = {
   currentActiveTab: 'tab-overview'
 };
 
+const IS_DEMO_MODE = !(typeof google !== 'undefined' && google.script && google.script.run);
+
 // Initialize Application on Window Load
 window.addEventListener('DOMContentLoaded', () => {
   if (window.feather) feather.replace();
@@ -58,9 +60,64 @@ function loadInitialData() {
       .withFailureHandler(handleDataError)
       .getDashboardPayload(false);
   } else {
-    console.warn('Running outside Google Apps Script environment. Initializing local fallback.');
-    handleDataError(new Error('google.script.run not available in local preview.'));
+    handleDataPayload(createDemoPayload());
   }
+}
+
+function createDemoPayload() {
+  const dateOffset = days => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return date.toISOString().slice(0, 10);
+  };
+  const makeInvoice = (plant, customerShort, customerFull, country, salesperson, invoiceNo, currency, amount, daysOverdue, key) => ({
+    plant, customerShort, customerFull, country, salesperson, invoiceNo,
+    invoiceDate: dateOffset(-90),
+    dueDate: dateOffset(-daysOverdue),
+    daysOverdue,
+    blDate: dateOffset(-85),
+    currency, amount,
+    terms: 'Sample 60-day terms',
+    remarks: 'Fictional demo record',
+    factoring: 'No',
+    priority: daysOverdue > 50 ? 'Critical' : daysOverdue > 0 ? 'Urgent' : 'Not Due',
+    sourceSheet: 'Demo data',
+    sourceRow: 0,
+    key
+  });
+  const openInvoices = [
+    makeInvoice('ASL', 'Altura Components', 'Altura Components LLC', 'United States', 'Rohan Mehta', 'DEMO-1001', 'USD', 48500, 76, 'DEMO-1001'),
+    makeInvoice('ASIL', 'Meridian Trading', 'Meridian Trading GmbH', 'Germany', 'Neha Rao', 'DEMO-1002', 'EUR', 62300, 35, 'DEMO-1002'),
+    makeInvoice('ASL', 'Orion Metals', 'Orion Metals FZE', 'United Arab Emirates', 'Aarav Shah', 'DEMO-1003', 'USD', 27800, 5, 'DEMO-1003'),
+    makeInvoice('ASIL', 'Bluewater Engineering', 'Bluewater Engineering Pte Ltd', 'Singapore', 'Neha Rao', 'DEMO-1004', 'EUR', 12400, -12, 'DEMO-1004'),
+    makeInvoice('ASL', 'Atlas Industrial', 'Atlas Industrial SA', 'Mexico', 'Rohan Mehta', 'DEMO-1005', 'USD', 39100, 112, 'DEMO-1005'),
+    makeInvoice('ASIL', 'Kestrel Supply', 'Kestrel Supply Ltd', 'United Kingdom', 'Maya Iyer', 'DEMO-1006', 'GBP', 18750, 0, 'DEMO-1006'),
+    makeInvoice('ASL', 'Crescent Works', 'Crescent Works Pvt Ltd', 'India', 'Aarav Shah', 'DEMO-1007', 'USD', 9600, 18, 'DEMO-1007'),
+    makeInvoice('ASIL', 'Northstar Global', 'Northstar Global Inc', 'Canada', 'Maya Iyer', 'DEMO-1008', 'EUR', 55400, 53, 'DEMO-1008')
+  ];
+  const paidInvoices = [
+    { ...makeInvoice('ASL', 'Summit Fabrication', 'Summit Fabrication Inc', 'United States', 'Rohan Mehta', 'DEMO-2001', 'USD', 22100, 0, 'DEMO-2001'), paidDate: dateOffset(-3), paymentSource: 'Demo sample', canRestore: false },
+    { ...makeInvoice('ASIL', 'Evergreen Imports', 'Evergreen Imports BV', 'Netherlands', 'Neha Rao', 'DEMO-2002', 'EUR', 31800, 0, 'DEMO-2002'), paidDate: dateOffset(-8), paymentSource: 'Demo sample', canRestore: false },
+    { ...makeInvoice('ASL', 'Pioneer Trade', 'Pioneer Trade Co', 'Australia', 'Aarav Shah', 'DEMO-2003', 'USD', 15400, 0, 'DEMO-2003'), paidDate: dateOffset(-14), paymentSource: 'Demo sample', canRestore: false }
+  ];
+  const allInvoices = [...openInvoices, ...paidInvoices];
+  const unique = key => [...new Set(allInvoices.map(invoice => invoice[key]))].sort();
+  return {
+    success: true,
+    trackerUrl: '',
+    lastRefreshed: 'Public demo — sample data',
+    aslStatus: 'Demo sample data',
+    asilStatus: 'Demo sample data',
+    syncLogs: [{ timestamp: 'Demo', status: 'Sample', plant: 'ASL + ASIL', recordsScanned: allInvoices.length, validInvoices: allInvoices.length, notes: 'Fictional demo data; no live sheets connected.' }],
+    openInvoices,
+    paidInvoices,
+    salespersons: unique('salesperson'),
+    customers: unique('customerShort'),
+    countries: unique('country'),
+    currencies: unique('currency'),
+    plants: ['ASL', 'ASIL'],
+    counts: { open: openInvoices.length, paid: paidInvoices.length, total: allInvoices.length }
+  };
 }
 
 /**
@@ -88,11 +145,9 @@ function triggerManualRefresh() {
       })
       .apiRefreshData();
   } else {
-    setTimeout(() => {
-      btn.disabled = false;
-      btnText.innerText = 'Refresh Now';
-      showToast('Simulation: Live sync completed.', 'success');
-    }, 1200);
+    btn.disabled = false;
+    btnText.innerText = 'Refresh Now';
+    showToast('Public demo uses sample data; live sync is disabled.', 'info');
   }
 }
 
@@ -117,6 +172,13 @@ function handleDataPayload(payload) {
   document.getElementById('health-asl-status').innerText = payload.aslStatus || 'Connected';
   document.getElementById('health-asil-status').innerText = payload.asilStatus || 'Connected';
   document.getElementById('health-tracker-link').href = payload.trackerUrl || '#';
+  if (IS_DEMO_MODE) {
+    const banner = document.getElementById('partial-data-banner');
+    banner.className = 'alert-banner';
+    banner.style.display = 'flex';
+    document.getElementById('banner-title').innerText = 'Public demo:';
+    document.getElementById('banner-message').innerText = 'All records are fictional sample data. No live source sheets are connected.';
+  }
 
   // Navigation Badges
   document.getElementById('nav-count-open').innerText = (payload.openInvoices || []).length;
@@ -161,7 +223,10 @@ function updateStatusPills(aslStatus, asilStatus) {
   const aslText = document.getElementById('status-asl-text');
   const asilText = document.getElementById('status-asil-text');
 
-  if (aslStatus && aslStatus.includes('Connected')) {
+  if (aslStatus && aslStatus.includes('Demo')) {
+    aslDot.className = 'status-dot warning';
+    aslText.innerText = 'Demo';
+  } else if (aslStatus && aslStatus.includes('Connected')) {
     aslDot.className = 'status-dot';
     aslText.innerText = 'Online';
   } else {
@@ -169,7 +234,10 @@ function updateStatusPills(aslStatus, asilStatus) {
     aslText.innerText = 'Issue';
   }
 
-  if (asilStatus && asilStatus.includes('Connected')) {
+  if (asilStatus && asilStatus.includes('Demo')) {
+    asilDot.className = 'status-dot warning';
+    asilText.innerText = 'Demo';
+  } else if (asilStatus && asilStatus.includes('Connected')) {
     asilDot.className = 'status-dot';
     asilText.innerText = 'Online';
   } else {
@@ -1603,7 +1671,7 @@ function submitMarkPaid() {
       btn.disabled = false;
       btn.innerText = 'Confirm Payment';
       closeModal('modal-mark-paid');
-      showToast('Simulation: Invoice marked as paid.', 'success');
+      showToast('Demo only: sample data was not changed.', 'info');
     }, 800);
   }
 }
@@ -1628,7 +1696,7 @@ function submitRestorePaid(key) {
       })
       .apiRestorePaidInvoice(key);
   } else {
-    showToast('Simulation: Payment record restored.', 'success');
+    showToast('Demo only: sample data was not changed.', 'info');
   }
 }
 

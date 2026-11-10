@@ -902,6 +902,10 @@
     <div class="toast-container" id="toast-container"></div>
   </div>
 
+  <? if (typeof HtmlService !== 'undefined') { ?>
   <?!= include('javascript'); ?>
+  <? } else { ?>
+  <script src="javascript.js"></script>
+  <? } ?>
 </body>
 </html>
