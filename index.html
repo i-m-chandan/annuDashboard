@@ -8,8 +8,11 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <!-- Feather Icons for crisp executive UI -->
   <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-  <link rel="stylesheet" href="styles.css">
+  <? if (typeof HtmlService !== 'undefined') { ?>
   <?!= include('styles'); ?>
+  <? } else { ?>
+  <link rel="stylesheet" href="styles.css">
+  <? } ?>
 </head>
 <body>
   <div class="app-container">
