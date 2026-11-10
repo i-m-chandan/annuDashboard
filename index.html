@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASL | ASIL Export Collection Intelligence — CEO Dashboard</title>
+  <!-- Chart.js for enterprise financial visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Feather Icons for crisp executive UI -->
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+  <?!= include('styles'); ?>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Executive Header -->
+    <header class="executive-header">
+      <div class="header-top">
+        <div class="brand-area">
+          <h1>
+            ASL | ASIL EXPORT COLLECTION INTELLIGENCE
+            <span class="brand-badge">Executive Edition</span>
+          </h1>
+          <p>Company-wide Export Receivables & Payment Monitoring — Ambica Steels Limited & Ambica Steels Industries Limited</p>
+        </div>
+
+        <div class="header-meta">
+          <!-- Live Connection Status Pills -->
+          <div class="connection-status">
+            <span class="status-indicator" id="status-asl">
+              <span class="status-dot"></span> ASL Delhi: <strong id="status-asl-text">Checking...</strong>
+            </span>
+            <span style="color: rgba(255,255,255,0.2);">|</span>
+            <span class="status-indicator" id="status-asil">
+              <span class="status-dot"></span> ASIL Gujarat: <strong id="status-asil-text">Checking...</strong>
+            </span>
+          </div>
+
+          <div style="font-size: 11px; color: #94a3b8; text-align: right;">
+            <div>Last Refreshed: <strong id="header-last-refresh" style="color: #ffffff;">Loading...</strong></div>
+            <div style="font-size: 10px; color: #60a5fa;">Auto-refresh: Every 30 Min</div>
+          </div>
+
+          <div class="header-actions">
+            <button class="btn btn-primary" id="btn-refresh-now" onclick="triggerManualRefresh()">
+              <i data-feather="refresh-cw" style="width: 14px; height: 14px;"></i>
+              <span id="refresh-btn-text">Refresh Now</span>
+            </button>
+            <button class="btn btn-secondary" onclick="toggleFullscreen()" title="Toggle Fullscreen">
+              <i data-feather="maximize" style="width: 14px; height: 14px;"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Bar (8 Comprehensive Tabs) -->
+    <nav class="navigation-bar">
+      <div class="nav-tab active" onclick="switchTab('tab-overview', this)">
+        <i data-feather="activity" style="width: 14px; height: 14px;"></i>
+        Executive Overview
+      </div>
+      <div class="nav-tab" onclick="switchTab('tab-open', this)">
+        <i data-feather="file-text" style="width: 14px; height: 14px;"></i>
+        Open Invoices
+        <span class="nav-badge" id="nav-count-open">0</span>
+      </div>
+      <div class="nav-tab" onclick="switchTab('tab-paid', this)">
+        <i data-feather="check-circle" style="width: 14px; height: 14px;"></i>
+        Payments Received
+        <span class="nav-badge" id="nav-count-paid">0</span>
+      </div>
+      <div class="nav-tab" onclick="switchTab('tab-overdue', this)">
+        <i data-feather="alert-octagon" style="width: 14px; height: 14px;"></i>
+        Overdue & Ageing
+        <span class="nav-badge" id="nav-count-overdue" style="background:#dc2626;">0</span>
+      </div>
+      <div class="nav-tab" onclick="switchTab('tab-customers', this)">
+        <i data-feather="users" style="width: 14px; height: 14px;"></i>
+        Customer Analysis
+      </div>
+      <div class="nav-tab" onclick="switchTab('tab-salespersons', this)">
+        <i data-feather="user-check" style="width: 14px; height: 14px;"></i>
+        Salesperson Performance
+      </div>
+      <div class="nav-tab" onclick="switchTab('tab-plants', this)">
+        <i data-feather="layers" style="width: 14px; height: 14px;"></i>
+        Plant Performance
+      </div>
+      <div class="nav-tab" onclick="switchTab('tab-health', this)">
+        <i data-feather="shield" style="width: 14px; height: 14px;"></i>
+        Data Health & Refresh Log
+      </div>
+    </nav>
+
+    <!-- Global Filter Toolbar -->
+    <div class="filter-bar">
+      <span class="filter-label">
+        <i data-feather="filter" style="width: 13px; height: 13px;"></i> Filters:
+      </span>
+
+      <div class="filter-group">
+        <select class="filter-select" id="filter-plant" onchange="applyGlobalFilters()">
+          <option value="ALL">All Plants (ASL + ASIL)</option>
+          <option value="ASL">ASL Delhi Plant</option>
+          <option value="ASIL">ASIL Gujarat Plant</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <select class="filter-select" id="filter-salesperson" onchange="applyGlobalFilters()">
+          <option value="ALL">All Salespersons</option>
+          <!-- Dynamically populated -->
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <select class="filter-select" id="filter-customer" onchange="applyGlobalFilters()">
+          <option value="ALL">All Customers</option>
+          <!-- Dynamically populated -->
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <select class="filter-select" id="filter-country" onchange="applyGlobalFilters()">
+          <option value="ALL">All Countries</option>
+          <!-- Dynamically populated -->
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <select class="filter-select" id="filter-currency" onchange="applyGlobalFilters()">
+          <option value="ALL">All Currencies</option>
+          <!-- Dynamically populated -->
+        </select>
+      </div>
+
+      <div class="filter-divider"></div>
+
+      <div class="filter-group">
+        <span style="font-size: 11px; color: var(--text-muted);">Due:</span>
+        <input type="date" class="filter-input" id="filter-date-from" onchange="applyGlobalFilters()" title="Due Date From">
+        <span style="font-size: 11px; color: var(--text-muted);">-</span>
+        <input type="date" class="filter-input" id="filter-date-to" onchange="applyGlobalFilters()" title="Due Date To">
+      </div>
+
+      <button class="btn btn-outline btn-sm" onclick="resetGlobalFilters()">
+        <i data-feather="rotate-ccw" style="width: 12px; height: 12px;"></i> Reset
+      </button>
+
+      <div class="active-filter-chips" id="active-filter-chips"></div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="main-content">
+
+      <!-- Partial Data / Connection Warning Alert Banner -->
+      <div class="alert-banner" id="partial-data-banner" style="display: none;">
+        <div>
+          <strong id="banner-title">Data Notice:</strong>
+          <span id="banner-message">Sync in progress...</span>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('partial-data-banner').style.display='none'">Dismiss</button>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 1: EXECUTIVE OVERVIEW (HOMEPAGE)       -->
+      <!-- ========================================== -->
+      <section id="tab-overview" class="tab-pane active">
+        <!-- 8 Executive Interactive KPI Cards -->
+        <div class="kpi-grid">
+          <!-- Card 1: Open Invoices -->
+          <div class="kpi-card not-due" onclick="filterByCard('open')">
+            <div class="kpi-header">
+              <span class="kpi-title">Open Invoices</span>
+              <span class="kpi-badge" style="background:#eff6ff; color:#1d4ed8;">Active</span>
+            </div>
+            <div class="kpi-count" id="kpi-open-count">0</div>
+            <div class="kpi-currency-group">
+              <div class="currency-row">
+                <span class="currency-tag">ASL Delhi</span>
+                <span class="currency-amount" id="kpi-open-asl">0</span>
+              </div>
+              <div class="currency-row">
+                <span class="currency-tag">ASIL Gujarat</span>
+                <span class="currency-amount" id="kpi-open-asil">0</span>
+              </div>
+            </div>
+            <div class="kpi-subtext">Click to view all open invoices</div>
+          </div>
+
+          <!-- Card 2: Open Receivables (Multi-currency safe) -->
+          <div class="kpi-card not-due">
+            <div class="kpi-header">
+              <span class="kpi-title">Open Receivables</span>
+              <span class="kpi-badge" style="background:#e0f2fe; color:#0369a1;">Exposure</span>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Never mixed currencies</div>
+            <div class="kpi-currency-group" id="kpi-open-receivables-list">
+              <div class="currency-row"><span class="currency-tag">EUR</span><span class="currency-amount">0.00</span></div>
+            </div>
+            <div class="kpi-subtext">Total uncollected export balance</div>
+          </div>
+
+          <!-- Card 3: Overdue Receivables -->
+          <div class="kpi-card overdue" onclick="filterByCard('overdue')">
+            <div class="kpi-header">
+              <span class="kpi-title">Overdue Receivables</span>
+              <span class="kpi-badge" style="background:#fef2f2; color:#dc2626;" id="kpi-overdue-pct">0% Overdue</span>
+            </div>
+            <div class="kpi-count" id="kpi-overdue-count" style="color: var(--status-red);">0</div>
+            <div class="kpi-currency-group" id="kpi-overdue-receivables-list">
+              <div class="currency-row"><span class="currency-tag">EUR</span><span class="currency-amount">0.00</span></div>
+            </div>
+            <div class="kpi-subtext">Past contractual due date</div>
+          </div>
+
+          <!-- Card 4: Not Yet Due -->
+          <div class="kpi-card not-due" onclick="filterByCard('notdue')">
+            <div class="kpi-header">
+              <span class="kpi-title">Not Yet Due</span>
+              <span class="kpi-badge" style="background:#eff6ff; color:#2563eb;">Current</span>
+            </div>
+            <div class="kpi-count" id="kpi-notdue-count">0</div>
+            <div class="kpi-currency-group" id="kpi-notdue-receivables-list">
+              <div class="currency-row"><span class="currency-tag">EUR</span><span class="currency-amount">0.00</span></div>
+            </div>
+            <div class="kpi-subtext">Within payment terms</div>
+          </div>
+
+          <!-- Card 5: Due in Next 7 Days -->
+          <div class="kpi-card upcoming" onclick="filterByCard('due7')">
+            <div class="kpi-header">
+              <span class="kpi-title">Due in Next 7 Days</span>
+              <span class="kpi-badge" style="background:#fffbeb; color:#d97706;">Urgent Pipeline</span>
+            </div>
+            <div class="kpi-count" id="kpi-due7-count" style="color: var(--status-amber);">0</div>
+            <div class="kpi-currency-group" id="kpi-due7-receivables-list">
+              <div class="currency-row"><span class="currency-tag">EUR</span><span class="currency-amount">0.00</span></div>
+            </div>
+            <div class="kpi-subtext">Immediate collection target</div>
+          </div>
+
+          <!-- Card 6: Due in Next 30 Days -->
+          <div class="kpi-card upcoming" onclick="filterByCard('due30')">
+            <div class="kpi-header">
+              <span class="kpi-title">Due in Next 30 Days</span>
+              <span class="kpi-badge" style="background:#fffbeb; color:#d97706;">Near-term</span>
+            </div>
+            <div class="kpi-count" id="kpi-due30-count">0</div>
+            <div class="kpi-currency-group" id="kpi-due30-receivables-list">
+              <div class="currency-row"><span class="currency-tag">EUR</span><span class="currency-amount">0.00</span></div>
+            </div>
+            <div class="kpi-subtext">Monthly projected inflows</div>
+          </div>
+
+          <!-- Card 7: Payments Received -->
+          <div class="kpi-card paid" onclick="filterByCard('paid')">
+            <div class="kpi-header">
+              <span class="kpi-title">Payments Received</span>
+              <span class="kpi-badge" style="background:#f0fdf4; color:#16a34a;">Recorded</span>
+            </div>
+            <div class="kpi-count" id="kpi-paid-count" style="color: var(--status-green);">0</div>
+            <div class="kpi-currency-group" id="kpi-paid-receivables-list">
+              <div class="currency-row"><span class="currency-tag">EUR</span><span class="currency-amount">0.00</span></div>
+            </div>
+            <div class="kpi-subtext">Yellow source rows + manual marks</div>
+          </div>
+
+          <!-- Card 8: Critical Overdue (>50 Days) -->
+          <div class="kpi-card critical" onclick="filterByCard('critical')">
+            <div class="kpi-header">
+              <span class="kpi-title">Critical Overdue (>50d)</span>
+              <span class="kpi-badge" style="background:#fef2f2; color:#991b1b;">High Risk</span>
+            </div>
+            <div class="kpi-count" id="kpi-critical-count" style="color: #991b1b;">0</div>
+            <div class="kpi-currency-group" id="kpi-critical-receivables-list">
+              <div class="currency-row"><span class="currency-tag">EUR</span><span class="currency-amount">0.00</span></div>
+            </div>
+            <div class="kpi-subtext">Requires executive escalation</div>
+          </div>
+        </div>
+
+        <!-- Automated CEO Financial Insights (AI-Style Executive Briefing) -->
+        <div class="insights-panel">
+          <div class="insights-header">
+            <div class="insights-title">
+              <span class="ai-pill">CEO BRIEFING</span>
+              Automated Executive Observations & Alerts
+            </div>
+            <span style="font-size: 11px; color: var(--text-muted);">Dynamically generated from live source data</span>
+          </div>
+          <div class="insights-grid" id="insights-container">
+            <!-- Dynamically populated rule-based insights -->
+          </div>
+        </div>
+
+        <!-- Financial Visualizations Grid -->
+        <div class="charts-grid">
+          <!-- Chart A: Plant-wise Receivables -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <span class="chart-title">Plant-wise Receivables & Invoices (ASL vs ASIL)</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-plant-comparison"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart B: Invoice Ageing Analysis -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <span class="chart-title">Receivables Ageing Distribution (Count & Exposure)</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-ageing"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart C: Payment Status Distribution -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <span class="chart-title">Portfolio Status Breakdown</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-status-donut"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart D: Top 10 Customers by Outstanding Exposure -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <span class="chart-title">Top Exposure Customers</span>
+              <span style="font-size: 11px; color: var(--text-muted);" id="top-customers-currency-label"></span>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-top-customers"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart E: Salesperson Exposure Comparison -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <span class="chart-title">Salesperson Receivables & Overdue Portfolio</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-salesperson"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart F: Upcoming Due Pipeline (7d, 15d, 30d) -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <span class="chart-title">Upcoming Maturity Horizon (7d, 15d, 30d)</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-upcoming"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart G: Monthly Payment Trends (Detected/Recorded) -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <span class="chart-title">Payment Detection Timeline (Recorded Dates)</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-payments-trend"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart H: Risk Concentration (Overdue Share) -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <span class="chart-title">Delinquency Concentration by Customer</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-risk-concentration"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 2: OPEN INVOICES (FULL DATA TABLE)     -->
+      <!-- ========================================== -->
+      <section id="tab-open" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Open Export Invoices</h2>
+            <p class="section-subtitle">Complete open receivables dataset across ASL Delhi and ASIL Gujarat</p>
+          </div>
+          <button class="btn btn-outline" onclick="exportTableToCSV('open')">
+            <i data-feather="download" style="width: 13px; height: 13px;"></i> Export to CSV
+          </button>
+        </div>
+
+        <div class="table-card">
+          <div class="table-toolbar">
+            <div class="search-box">
+              <i data-feather="search" class="search-icon" style="width: 14px; height: 14px;"></i>
+              <input type="text" id="search-open" placeholder="Search invoice, customer, salesperson..." oninput="handleTableSearch('open')">
+            </div>
+            <div class="table-actions">
+              <span style="font-size: 11px; color: var(--text-muted);">Rows per page:</span>
+              <select class="filter-select" id="page-size-open" style="min-width: 70px;" onchange="changePageSize('open')">
+                <option value="15">15</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table" id="table-open">
+              <thead>
+                <tr>
+                  <th onclick="sortTable('open', 'plant')">Plant ↕</th>
+                  <th onclick="sortTable('open', 'customerShort')">Customer ↕</th>
+                  <th onclick="sortTable('open', 'country')">Country ↕</th>
+                  <th onclick="sortTable('open', 'salesperson')">Salesperson ↕</th>
+                  <th onclick="sortTable('open', 'invoiceNo')">Invoice No ↕</th>
+                  <th onclick="sortTable('open', 'invoiceDate')">Inv Date ↕</th>
+                  <th onclick="sortTable('open', 'dueDate')">Due Date ↕</th>
+                  <th onclick="sortTable('open', 'daysOverdue')">Days Overdue ↕</th>
+                  <th onclick="sortTable('open', 'currency')">Curr ↕</th>
+                  <th onclick="sortTable('open', 'amount')">Amount ↕</th>
+                  <th>Terms</th>
+                  <th>Priority</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-open">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-pagination">
+            <span id="page-info-open">Showing 0 to 0 of 0 entries</span>
+            <div class="page-controls">
+              <button class="btn btn-outline btn-sm" id="btn-prev-open" onclick="changePage('open', -1)">Previous</button>
+              <button class="btn btn-outline btn-sm" id="btn-next-open" onclick="changePage('open', 1)">Next</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 3: PAYMENTS RECEIVED                   -->
+      <!-- ========================================== -->
+      <section id="tab-paid" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Payments Received & Settled Records</h2>
+            <p class="section-subtitle">Distinguishes source yellow-highlighted rows from manual payment marks</p>
+          </div>
+          <button class="btn btn-outline" onclick="exportTableToCSV('paid')">
+            <i data-feather="download" style="width: 13px; height: 13px;"></i> Export to CSV
+          </button>
+        </div>
+
+        <div style="background: #fffbeb; border: 1px solid #fef08a; padding: 10px 16px; border-radius: var(--radius-md); font-size: 11px; color: #854d0e; margin-bottom: 16px;">
+          <strong>Date Integrity Note:</strong> For rows identified from yellow background highlighting in the source sheets, the "Payment Received Date" represents the <em>date detected by the script</em>. Confirmed bank settlement dates are indicated when provided by manual check records.
+        </div>
+
+        <div class="table-card">
+          <div class="table-toolbar">
+            <div class="search-box">
+              <i data-feather="search" class="search-icon" style="width: 14px; height: 14px;"></i>
+              <input type="text" id="search-paid" placeholder="Search paid invoices, customer..." oninput="handleTableSearch('paid')">
+            </div>
+            <div class="table-actions">
+              <select class="filter-select" id="page-size-paid" style="min-width: 70px;" onchange="changePageSize('paid')">
+                <option value="15">15</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table" id="table-paid">
+              <thead>
+                <tr>
+                  <th onclick="sortTable('paid', 'plant')">Plant ↕</th>
+                  <th onclick="sortTable('paid', 'customerShort')">Customer ↕</th>
+                  <th onclick="sortTable('paid', 'invoiceNo')">Invoice No ↕</th>
+                  <th onclick="sortTable('paid', 'salesperson')">Salesperson ↕</th>
+                  <th onclick="sortTable('paid', 'currency')">Curr ↕</th>
+                  <th onclick="sortTable('paid', 'amount')">Amount ↕</th>
+                  <th onclick="sortTable('paid', 'paidDate')">Recorded Date ↕</th>
+                  <th>Payment Source</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-paid">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-pagination">
+            <span id="page-info-paid">Showing 0 to 0 of 0 entries</span>
+            <div class="page-controls">
+              <button class="btn btn-outline btn-sm" id="btn-prev-paid" onclick="changePage('paid', -1)">Previous</button>
+              <button class="btn btn-outline btn-sm" id="btn-next-paid" onclick="changePage('paid', 1)">Next</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 4: OVERDUE & AGEING                    -->
+      <!-- ========================================== -->
+      <section id="tab-overdue" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Overdue Receivables & Ageing Buckets</h2>
+            <p class="section-subtitle">Categorized delinquency monitoring and critical collection priorities</p>
+          </div>
+          <button class="btn btn-outline" onclick="exportTableToCSV('overdue')">
+            <i data-feather="download" style="width: 13px; height: 13px;"></i> Export to CSV
+          </button>
+        </div>
+
+        <!-- Overdue Quick Filter Buckets -->
+        <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+          <button class="btn btn-primary btn-sm" id="bucket-btn-all" onclick="filterAgeingBucket('ALL')">All Overdue</button>
+          <button class="btn btn-outline btn-sm" id="bucket-btn-1-30" onclick="filterAgeingBucket('1-30')">1–30 Days Overdue</button>
+          <button class="btn btn-outline btn-sm" id="bucket-btn-31-50" onclick="filterAgeingBucket('31-50')">31–50 Days Overdue</button>
+          <button class="btn btn-outline btn-sm" id="bucket-btn-51-90" onclick="filterAgeingBucket('51-90')">51–90 Days Overdue</button>
+          <button class="btn btn-outline btn-sm" id="bucket-btn-90plus" onclick="filterAgeingBucket('90+')">>90 Days Critical</button>
+        </div>
+
+        <div class="table-card">
+          <div class="table-toolbar">
+            <div class="search-box">
+              <i data-feather="search" class="search-icon" style="width: 14px; height: 14px;"></i>
+              <input type="text" id="search-overdue" placeholder="Search overdue invoices..." oninput="handleTableSearch('overdue')">
+            </div>
+            <div class="table-actions">
+              <select class="filter-select" id="page-size-overdue" style="min-width: 70px;" onchange="changePageSize('overdue')">
+                <option value="15">15</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table" id="table-overdue">
+              <thead>
+                <tr>
+                  <th onclick="sortTable('overdue', 'plant')">Plant ↕</th>
+                  <th onclick="sortTable('overdue', 'customerShort')">Customer ↕</th>
+                  <th onclick="sortTable('overdue', 'invoiceNo')">Invoice No ↕</th>
+                  <th onclick="sortTable('overdue', 'salesperson')">Salesperson ↕</th>
+                  <th onclick="sortTable('overdue', 'dueDate')">Due Date ↕</th>
+                  <th onclick="sortTable('overdue', 'daysOverdue')">Days Overdue ↕</th>
+                  <th onclick="sortTable('overdue', 'currency')">Curr ↕</th>
+                  <th onclick="sortTable('overdue', 'amount')">Amount ↕</th>
+                  <th>Bucket</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-overdue">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-pagination">
+            <span id="page-info-overdue">Showing 0 to 0 of 0 entries</span>
+            <div class="page-controls">
+              <button class="btn btn-outline btn-sm" id="btn-prev-overdue" onclick="changePage('overdue', -1)">Previous</button>
+              <button class="btn btn-outline btn-sm" id="btn-next-overdue" onclick="changePage('overdue', 1)">Next</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 5: CUSTOMER ANALYSIS                   -->
+      <!-- ========================================== -->
+      <section id="tab-customers" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Customer Financial Exposure & Risk</h2>
+            <p class="section-subtitle">Aggregated customer receivables, overdue balances, and max overdue exposure</p>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-toolbar">
+            <div class="search-box">
+              <i data-feather="search" class="search-icon" style="width: 14px; height: 14px;"></i>
+              <input type="text" id="search-customer-table" placeholder="Search customer name, country..." oninput="renderCustomerAnalysis()">
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Customer Name</th>
+                  <th>Country</th>
+                  <th>Plant(s)</th>
+                  <th>Salesperson</th>
+                  <th>Open Invoices</th>
+                  <th>Open Amount by Currency</th>
+                  <th>Overdue Invoices</th>
+                  <th>Overdue Amount</th>
+                  <th>Max Overdue (Days)</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-customers">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 6: SALESPERSON PERFORMANCE             -->
+      <!-- ========================================== -->
+      <section id="tab-salespersons" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Salesperson Performance & Portfolio Analysis</h2>
+            <p class="section-subtitle">Company-wide breakdown of collection pipelines per international sales rep</p>
+          </div>
+        </div>
+
+        <!-- Salesperson Highlights Cards -->
+        <div class="kpi-grid" id="salesperson-cards-container" style="margin-bottom: 24px;">
+          <!-- Dynamically populated -->
+        </div>
+
+        <div class="table-card">
+          <div class="table-toolbar">
+            <div class="search-box">
+              <i data-feather="search" class="search-icon" style="width: 14px; height: 14px;"></i>
+              <input type="text" id="search-salesperson-table" placeholder="Search salesperson name..." oninput="renderSalespersonPerformance()">
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Salesperson</th>
+                  <th>Plant(s)</th>
+                  <th>Open Invoices</th>
+                  <th>Open Amount by Currency</th>
+                  <th>Overdue Invoices</th>
+                  <th>Overdue Amount</th>
+                  <th>Not Yet Due</th>
+                  <th>Paid Count</th>
+                  <th>Highest Overdue Customer</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-salespersons">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 7: PLANT PERFORMANCE                   -->
+      <!-- ========================================== -->
+      <section id="tab-plants" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Plant Performance Comparison: ASL Delhi vs ASIL Gujarat</h2>
+            <p class="section-subtitle">Side-by-side export operational metrics, exposure, and collection rates</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px; margin-bottom: 24px;">
+          <!-- ASL Delhi Plant Card -->
+          <div class="kpi-card" style="border-top: 4px solid #1d4ed8;">
+            <div class="kpi-header">
+              <span class="kpi-title" style="font-size: 14px;">ASL Delhi Plant</span>
+              <span class="pill pill-plant">Delhi Unit</span>
+            </div>
+            <div style="margin: 12px 0;">
+              <div style="font-size: 11px; color: var(--text-muted);">Open Invoices:</div>
+              <div class="kpi-count" id="plant-asl-open-count">0</div>
+            </div>
+            <div class="kpi-currency-group">
+              <strong style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Receivables by Currency:</strong>
+              <div id="plant-asl-receivables-list"></div>
+            </div>
+            <div class="kpi-currency-group" style="margin-top: 10px;">
+              <strong style="font-size: 11px; color: var(--status-red); margin-bottom: 4px;">Overdue Receivables:</strong>
+              <div id="plant-asl-overdue-list"></div>
+            </div>
+          </div>
+
+          <!-- ASIL Gujarat Plant Card -->
+          <div class="kpi-card" style="border-top: 4px solid #0f766e;">
+            <div class="kpi-header">
+              <span class="kpi-title" style="font-size: 14px;">ASIL Gujarat Plant</span>
+              <span class="pill pill-plant">Gujarat Unit</span>
+            </div>
+            <div style="margin: 12px 0;">
+              <div style="font-size: 11px; color: var(--text-muted);">Open Invoices:</div>
+              <div class="kpi-count" id="plant-asil-open-count">0</div>
+            </div>
+            <div class="kpi-currency-group">
+              <strong style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Receivables by Currency:</strong>
+              <div id="plant-asil-receivables-list"></div>
+            </div>
+            <div class="kpi-currency-group" style="margin-top: 10px;">
+              <strong style="font-size: 11px; color: var(--status-red); margin-bottom: 4px;">Overdue Receivables:</strong>
+              <div id="plant-asil-overdue-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-toolbar">
+            <strong>Plant Top Customers Comparison</strong>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Metric / Dimension</th>
+                  <th>ASL Delhi</th>
+                  <th>ASIL Gujarat</th>
+                  <th>Total Portfolio</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-plant-matrix">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 8: DATA HEALTH & REFRESH LOG           -->
+      <!-- ========================================== -->
+      <section id="tab-health" class="tab-pane">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Data Health & Refresh Diagnostics</h2>
+            <p class="section-subtitle">Real-time spreadsheet connectivity, data validation metrics, and error logs</p>
+          </div>
+          <button class="btn btn-primary" onclick="triggerManualRefresh()">
+            <i data-feather="refresh-cw" style="width: 13px; height: 13px;"></i> Sync All Sources Now
+          </button>
+        </div>
+
+        <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 24px;">
+          <div class="kpi-card">
+            <span class="kpi-title">ASL Connection</span>
+            <div style="font-size: 14px; font-weight: 700; margin-top: 8px;" id="health-asl-status">Checking...</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-title">ASIL Connection</span>
+            <div style="font-size: 14px; font-weight: 700; margin-top: 8px;" id="health-asil-status">Checking...</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-title">Duplicates Detected</span>
+            <div class="kpi-count" id="health-duplicates">0</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-title">Missing Terms / Dates</span>
+            <div class="kpi-count" id="health-missing-fields" style="color: var(--status-amber);">0</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-title">Central Tracker DB</span>
+            <div style="margin-top: 8px;">
+              <a href="#" id="health-tracker-link" target="_blank" class="btn btn-outline btn-sm">Open Sheet ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-toolbar">
+            <strong>Synchronization History & Audit Trail</strong>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Status</th>
+                  <th>Plant</th>
+                  <th>Records Scanned</th>
+                  <th>Valid Invoices</th>
+                  <th>Notes / Errors</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-sync-logs">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- INVOICE DETAIL MODAL -->
+    <div class="modal-overlay" id="modal-invoice-detail">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3 class="modal-title" id="modal-inv-title">Invoice Details</h3>
+          <button class="modal-close" onclick="closeModal('modal-invoice-detail')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="detail-grid" id="modal-inv-content">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('modal-invoice-detail')">Close</button>
+          <button class="btn btn-success" id="modal-btn-mark-paid" onclick="openMarkPaidModalFromDetail()">Mark as Paid</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MARK AS PAID MODAL -->
+    <div class="modal-overlay" id="modal-mark-paid">
+      <div class="modal-box" style="max-width: 440px;">
+        <div class="modal-header">
+          <h3 class="modal-title">Record Payment</h3>
+          <button class="modal-close" onclick="closeModal('modal-mark-paid')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">
+            Invoice Key: <strong id="mark-paid-key"></strong><br>
+            Amount: <strong id="mark-paid-amount"></strong>
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">Payment Received Date</label>
+              <input type="date" id="mark-paid-date" class="filter-input" style="width: 100%; margin-top: 4px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">Remarks / Payment Ref (Optional)</label>
+              <input type="text" id="mark-paid-remarks" class="filter-input" placeholder="e.g. Wire transfer ref, swift copy" style="width: 100%; margin-top: 4px;">
+            </div>
+          </div>
+          <div style="background: #f1f5f9; padding: 10px; border-radius: 6px; font-size: 11px; color: #475569; margin-top: 14px;">
+            <strong>Important:</strong> This records payment strictly in the separate management tracker. The original source Google Sheet is never modified.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('modal-mark-paid')">Cancel</button>
+          <button class="btn btn-success" id="btn-confirm-mark-paid" onclick="submitMarkPaid()">Confirm Payment</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DRILLDOWN MODAL (Customer / Salesperson) -->
+    <div class="modal-overlay" id="modal-drilldown">
+      <div class="modal-box" style="max-width: 850px;">
+        <div class="modal-header">
+          <h3 class="modal-title" id="modal-drilldown-title">Entity Drilldown</h3>
+          <button class="modal-close" onclick="closeModal('modal-drilldown')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Plant</th>
+                  <th>Invoice No</th>
+                  <th>Customer</th>
+                  <th>Due Date</th>
+                  <th>Days Overdue</th>
+                  <th>Currency</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="modal-drilldown-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('modal-drilldown')">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+  </div>
+
+  <?!= include('javascript'); ?>
+</body>
+</html>
